@@ -1,0 +1,81 @@
+import spacy
+import fitz
+from io import BytesIO
+
+def load_spacy_model():
+    return spacy.load("en_core_web_sm")
+
+def parse_resume_text(text):
+    nlp = load_spacy_model()
+    doc = nlp(text)
+
+    # Extract relevant information
+    name = extract_name(doc)
+    email = extract_email(doc)
+    phone = extract_phone(doc)
+    skills = extract_skills(doc)
+
+    return {
+        "Name": name,
+        "Email": email,
+        "Phone": phone,
+        "Skills": skills,
+        # Add more fields as needed
+    }
+
+def extract_name(doc):
+    # Custom logic to extract the name
+    # Assumes that the name is in the first line of the document
+    return doc[0].text if len(doc) > 0 else None
+
+def extract_email(doc):
+    # Custom logic to extract the email
+    # Assumes that the email is mentioned explicitly
+    for token in doc:
+        if "@" in token.text:
+            return token.text
+    return None
+
+def extract_phone(doc):
+    return next(
+        (
+            token.text
+            for token in doc
+            if token.like_num and len(token.text) == 10
+        ),
+        None,
+    )
+
+def extract_skills(doc):
+    # Custom logic to extract skills
+    # Assumes that there is a section mentioning skills explicitly
+    # This is a simple example; you might want to use a dedicated model or database for skills extraction
+    skills = []
+    for token in doc:
+        if token.text.lower() == "skills":
+            skills.extend([t.text for t in token.head.children if t.dep_ == "conj"])
+    return skills
+
+def extract_text_from_pdf(pdf_data):
+    pdf_document = fitz.open(stream=pdf_data, filetype="pdf")
+    pdf_text = ""
+    for page_num in range(pdf_document.page_count):
+        page = pdf_document[page_num]
+        pdf_text += page.get_text()
+
+    return pdf_text
+
+if __name__ == "__main__":
+    # Example usage reading from a PDF file
+    pdf_file_path = "path/to/your/resume.pdf"
+    # Read PDF content
+    with open(pdf_file_path, "rb") as pdf_file:
+        pdf_data = pdf_file.read()
+    # Extract text from PDF
+    pdf_text = extract_text_from_pdf(pdf_data)
+    # Parse the resume
+    parsed_data = parse_resume_text(pdf_text)
+    # Print parsed data
+    print("Parsed Data:")
+    for key, value in parsed_data.items():
+        print(f"{key}: {value}")
